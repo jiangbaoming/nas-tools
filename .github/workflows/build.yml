@@ -5,7 +5,7 @@ on:
       docker_username:
         description: 'docker user name'
         required: true
-        default: ''
+        default: 'jiangming927'
       docker_password:
         description: 'docker user password'
         required: true
