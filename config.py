@@ -57,6 +57,8 @@ PT_TAG = "NASTOOL"
 DEFAULT_MOVIE_FORMAT = '{title} ({year})/{title} ({year})-{part} - {videoFormat}'
 # 电视剧默认命名格式
 DEFAULT_TV_FORMAT = '{title} ({year})/Season {season}/{title} - {season_episode}-{part} - 第 {episode} 集'
+# AV默认命名格式
+DEFAULT_AV_FORMAT = '{actor}/{title}'
 # 辅助识别参数
 KEYWORD_SEARCH_WEIGHT_1 = [10, 3, 2, 0.5, 0.5]
 KEYWORD_SEARCH_WEIGHT_2 = [10, 2, 1]

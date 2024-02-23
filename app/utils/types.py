@@ -9,6 +9,7 @@ class MediaType(Enum):
     TV = '电视剧'
     MOVIE = '电影'
     ANIME = '动漫'
+    AV = 'AV'
     UNKNOWN = '未知'
 
 
@@ -199,6 +200,8 @@ class RssType(Enum):
 MovieTypes = ['MOV', '电影', MediaType.MOVIE]
 # 电视剧类型关键字
 TvTypes = ['TV', '电视剧', MediaType.TV]
+
+AvTypes = ['AV', MediaType.AV]
 
 # 内置索引器文件md5值
 BuiltinIndexerFileMd5 = "6b828f14ae2a4bf165f1f9c91b87825f"

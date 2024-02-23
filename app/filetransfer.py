@@ -20,7 +20,7 @@ from app.utils import EpisodeFormat, PathUtils, StringUtils, SystemUtils, Except
 from app.utils.commons import singleton
 from app.utils.types import MediaType, SyncType, RmtMode, EventType, ProgressKey, MovieTypes
 from config import RMT_AUDIO_TRACK_EXT, RMT_SUBEXT, RMT_MEDIAEXT, RMT_FAVTYPE, RMT_MIN_FILESIZE, DEFAULT_MOVIE_FORMAT, \
-    DEFAULT_TV_FORMAT, Config
+    DEFAULT_TV_FORMAT, DEFAULT_AV_FORMAT, Config
 
 lock = Lock()
 
@@ -41,6 +41,7 @@ class FileTransfer:
     _movie_path = None
     _tv_path = None
     _anime_path = None
+    _av_path = None
     _movie_category_flag = None
     _tv_category_flag = None
     _anime_category_flag = None
@@ -49,6 +50,8 @@ class FileTransfer:
     _filesize_cover = False
     _movie_dir_rmt_format = ""
     _movie_file_rmt_format = ""
+    _av_dir_rmt_format = ""
+    _av_file_rmt_format = ""
     _tv_dir_rmt_format = ""
     _tv_season_rmt_format = ""
     _tv_file_rmt_format = ""
@@ -75,6 +78,13 @@ class FileTransfer:
 
         media = Config().get_config('media')
         if media:
+            # av目录
+            self._av_path = media.get('av_path')
+            if not isinstance(self._av_path, list):
+                if self._av_path:
+                    self._av_path = [self._av_path]
+                else:
+                    self._av_path = []
             # 电影目录
             self._movie_path = media.get('movie_path')
             if not isinstance(self._movie_path, list):
@@ -140,6 +150,13 @@ class FileTransfer:
                 self._movie_dir_rmt_format = movie_formats[0]
                 if len(movie_formats) > 1:
                     self._movie_file_rmt_format = movie_formats[-1]
+            # AV重命名格式
+            av_name_format = media.get('av_name_format') or DEFAULT_AV_FORMAT
+            av_formats = av_name_format.rsplit('/', 1)
+            if av_formats:
+                self._av_dir_rmt_format = av_formats[0]
+                if len(av_formats) > 1:
+                    self._av_file_rmt_format = av_formats[-1]
             # 电视剧重命名格式
             tv_name_format = media.get('tv_name_format') or DEFAULT_TV_FORMAT
             tv_formats = tv_name_format.rsplit('/', 2)
@@ -721,7 +738,6 @@ class FileTransfer:
                     continue
                 if dist_path and not os.path.exists(dist_path) and rmt_mode not in ModuleConf.REMOTE_RMT_MODES:
                     return __finish_transfer(False, "目录不存在：%s" % dist_path)
-
                 # 判断文件是否已存在，返回：目录存在标志、目录名、文件存在标志、文件名
                 dir_exist_flag, ret_dir_path, file_exist_flag, ret_file_path = self.__is_media_exists(dist_path, media)
                 # 新文件后缀
@@ -851,9 +867,10 @@ class FileTransfer:
                                 alert_messages.append(error_message)
                             continue
                 # 查询TMDB详情，需要全部数据
-                media.set_tmdb_info(self.media.get_tmdb_info(mtype=media.type,
-                                                             tmdbid=media.tmdb_id,
-                                                             append_to_response="all"))
+                if not media.type == MediaType.AV:
+                    media.set_tmdb_info(self.media.get_tmdb_info(mtype=media.type,
+                                                                 tmdbid=media.tmdb_id,
+                                                                 append_to_response="all"))
                 # 输出路径
                 out_path = new_file if not bluray_disk_dir else ret_dir_path
                 # 转移历史记录
@@ -869,12 +886,12 @@ class FileTransfer:
                     # 未识别手动识别，更改未识别记录为已处理
                     self.update_transfer_unknown_state(file_item)
                 # 电影立即发送消息
-                if media.type == MediaType.MOVIE:
+                if media.type == MediaType.MOVIE or media.type == MediaType.AV:
                     if self._simplify_library_notification:
                         self.message.send_simplify_transfer_movie_message(in_from,
-                                                             media,
-                                                             exist_filenum,
-                                                             self._movie_category_flag)
+                                                                          media,
+                                                                          exist_filenum,
+                                                                          self._movie_category_flag)
                     else:
                         self.message.send_transfer_movie_message(in_from,
                                                                  media,
@@ -1040,6 +1057,28 @@ class FileTransfer:
                     file_exist_flag = True
                     ret_file_path = ext_dest
                     break
+        # AV
+        elif media.type == MediaType.AV:
+            # 目录名称
+            dir_name, file_name = self.get_av_dest_path(media)
+            # 默认目录路径
+            file_path = os.path.join(media_dest, dir_name)
+            # 返回路径
+            ret_dir_path = file_path
+            # 路径存在标志
+            if os.path.exists(file_path):
+                dir_exist_flag = True
+            # 文件路径
+            file_dest = os.path.join(file_path, file_name)
+            # 返回文件路径
+            ret_file_path = file_dest
+            # 文件是否存在
+            for ext in RMT_MEDIAEXT:
+                ext_dest = "%s%s" % (file_dest, ext)
+                if os.path.exists(ext_dest):
+                    file_exist_flag = True
+                    ret_file_path = ext_dest
+                    break
         # 电视剧或者动漫
         else:
             # 目录名称
@@ -1168,6 +1207,8 @@ class FileTransfer:
             dest_paths = self._movie_path
         elif mtype == MediaType.TV:
             dest_paths = self._tv_path
+        elif mtype == MediaType.AV:
+            dest_paths = self._av_path
         else:
             dest_paths = self._anime_path
         if not dest_paths:
@@ -1273,6 +1314,8 @@ class FileTransfer:
             "season_episode": "%s%s" % (media.get_season_item(), media.get_episode_items()),
             "part": media.part
         }
+        if media.type == MediaType.AV:
+            media_format_dict['actor'] = media.actor
         for i in media_format_dict.keys():
             if not media_format_dict[i]:
                 media_format_dict[i] = '\t'
@@ -1286,6 +1329,17 @@ class FileTransfer:
         format_dict = self.get_format_dict(media_info)
         dir_name = re.sub(r"[-_\s.]*\t", "", self._movie_dir_rmt_format.format(**format_dict))
         file_name = re.sub(r"[-_\s.]*\t", "", self._movie_file_rmt_format.format(**format_dict))
+        return dir_name, file_name
+
+        def get_av_dest_path(self, media_info):
+            """
+            计算av文件路径
+            :return: av目录、av名称
+            """
+
+        format_dict = self.get_format_dict(media_info)
+        dir_name = re.sub(r"[-_\s.]*\t", "", self._av_dir_rmt_format.format(**format_dict))
+        file_name = re.sub(r"[-_\s.]*\t", "", self._av_file_rmt_format.format(**format_dict))
         return dir_name, file_name
 
     def get_tv_dest_path(self, media_info):

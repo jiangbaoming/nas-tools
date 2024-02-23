@@ -152,7 +152,7 @@ export class LitState {
             if (!observerObj.keys || observerObj.keys.includes(key)) {
                 observerObj.observer(key);
             }
-        };
+        }
     }
 
 }

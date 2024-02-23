@@ -951,18 +951,18 @@
           let date = '';
           if (download.title) {
             title = `<span class="text-muted">${download.title}</span>`
-          };
+          }
           if (download.date) {
             date = download.date.split(" ");
             date = `<small class="text-muted">${date[0]}<br>${date[1]}</small>`;
-          };
+          }
           if (download.downloader) {
             downloader = `<span class="badge me-1 mb-1" title="下载器">${download.downloader}</span>`;
-          };
+          }
           content_td = `${content_td}<tr><td>${title}</td>><td>${downloader}</td><td class="text-nowrap">${date}</td></tr>`;
           let content_tb = `<tbody>${content_td}</tbody>`;
           content = `${content_th}${content_tb}`;
-        };
+        }
       } else {
         content= `<div class="empty"><p class="empty-title">${ret.msg}</p></div>`;
       }

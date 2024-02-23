@@ -1052,7 +1052,7 @@ function show_rss_success_modal(rssid, type, text) {
       $("#system-success-action-modal").modal('hide');
       show_edit_rss_media_modal(rssid, type);
     });
-    ;
+
     $("#system_success_action_div").show();
   } else {
     $("#system_success_action_div").hide();

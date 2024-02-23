@@ -6,10 +6,13 @@ from app.helper import WordsHelper
 from app.media.meta.metaanime import MetaAnime
 from app.media.meta.metavideo import MetaVideo
 from app.media.meta.metavideov2 import MetaVideoV2
+from app.media.meta.metaav import MetaAv
 from app.utils.types import MediaType
 from app.utils import StringUtils
 from config import Config, RMT_MEDIAEXT
 from app.helper import FfmpegHelper
+from app.utils.number_parser_util import get_number
+
 
 def MetaInfo(title,
              subtitle=None,
@@ -58,9 +61,11 @@ def MetaInfo(title,
         recognize_enhance_enable = laboratory.get('recognize_enhance_enable', False) or False
 
     if recognize_enhance_enable:
-         meta_info = MetaVideoV2(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
+        meta_info = MetaVideoV2(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
     else:
-        if mtype == MediaType.ANIME or is_anime(rev_title):
+        if mtype == MediaType.AV or get_number(rev_title):
+            meta_info = MetaAv(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
+        elif mtype == MediaType.ANIME or is_anime(rev_title):
             meta_info = MetaAnime(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
         else:
             meta_info = MetaVideo(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
@@ -94,6 +99,7 @@ def is_anime(name):
     if re.search(r'\[[+0-9XVPI-]+]\s*\[', name, re.IGNORECASE):
         return True
     return False
+
 
 def __complete_rev_title(title, filePath):
     """
@@ -140,6 +146,7 @@ def __complete_rev_title(title, filePath):
         completed_video_meta_title = title_without_extension + "." + video_meta_title + "." + title_extension_without_dot
     return completed_video_meta_title
 
+
 def __get_resolution(video_meta):
     """
     根据ffprobe获取到的视频信息，生成分辨率信息，480p/720p/1080p/4K
@@ -150,6 +157,7 @@ def __get_resolution(video_meta):
             if isinstance(height, int):
                 return __calculate_resolution(height)
     return None
+
 
 def __calculate_resolution(height):
     """
@@ -180,6 +188,7 @@ def __calculate_resolution(height):
     else:
         return None
 
+
 def __get_color_space(video_meta):
     """
     根据ffprobe获取到的视频信息，获取色彩空间(SDR/HDR)
@@ -195,6 +204,7 @@ def __get_color_space(video_meta):
                     return "HDR"
     return None
 
+
 def __get_dolby_vision(video_meta):
     """
     根据ffprobe获取到的视频信息，判断是否是杜比视界, 输出DV
@@ -206,6 +216,7 @@ def __get_dolby_vision(video_meta):
                 return "DV"
     return None
 
+
 def __get_video_codec(video_meta):
     """
     根据ffprobe获取到的视频信息，生成视频编码信息，HEVC/H264/H265
@@ -216,6 +227,7 @@ def __get_video_codec(video_meta):
             if StringUtils.is_string_and_not_empty(codec_name):
                 return codec_name.upper()
     return None
+
 
 def __get_audio_codec(video_meta):
     """

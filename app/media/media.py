@@ -13,6 +13,7 @@ from app.helper import MetaHelper
 from app.helper.openai_helper import OpenAiHelper
 from app.media.meta.metainfo import MetaInfo
 from app.media.tmdbv3api import TMDb, Search, Movie, TV, Person, Find, TMDbException, Discover, Trending, Episode, Genre
+from app.media.mdcapi import MDC
 from app.utils import PathUtils, EpisodeFormat, RequestUtils, NumberUtils, StringUtils, cacheman
 from app.utils.types import MediaType, MatchMode
 from config import Config, KEYWORD_BLACKLIST, KEYWORD_SEARCH_WEIGHT_3, KEYWORD_SEARCH_WEIGHT_2, KEYWORD_SEARCH_WEIGHT_1, \
@@ -21,6 +22,7 @@ from config import Config, KEYWORD_BLACKLIST, KEYWORD_SEARCH_WEIGHT_3, KEYWORD_S
 
 class Media:
     # TheMovieDB
+    mdc = None
     tmdb = None
     search = None
     movie = None
@@ -57,6 +59,8 @@ class Media:
         self._default_language = media.get("tmdb_language", "zh") or "zh"
         # TMDB是否包含成人内容
         self._tmdb_include_adult = media.get("tmdb_include_adult")
+        # mdc
+        self.mdc = MDC()
         # TMDB
         if app.get('rmt_tmdbkey'):
             # TMDB主体
@@ -934,9 +938,15 @@ class Media:
                         continue
                     # 区配缓存及TMDB
                     media_key = self.__make_cache_key(meta_info)
+                    # 没有缓存数据
                     if not self.meta.get_meta_data_by_key(media_key):
-                        # 没有缓存数据
-                        file_media_info = self.__search_tmdb(file_media_name=meta_info.get_name(),
+                        if meta_info.type == MediaType.AV:
+                            file_media_info = self._search_av(meta_info.get_name(),meta_info)
+                            if not file_media_info:
+                                log.warn("【Rmt】%s 未识别出有效信息！" % meta_info.org_string)
+                                continue
+                        else:
+                            file_media_info = self.__search_tmdb(file_media_name=meta_info.get_name(),
                                                              first_media_year=meta_info.year,
                                                              search_type=meta_info.type,
                                                              media_year=meta_info.year,
@@ -971,7 +981,8 @@ class Media:
                                     file_media_info = self.__search_multi_tmdb(file_media_name=cache_name)
                         # 补全TMDB信息
                         if file_media_info and not file_media_info.get("genres"):
-                            file_media_info = self.get_tmdb_info(mtype=file_media_info.get("media_type"),
+                            if not meta_info.type == MediaType.AV:
+                                file_media_info = self.get_tmdb_info(mtype=file_media_info.get("media_type"),
                                                                  tmdbid=file_media_info.get("id"),
                                                                  chinese=chinese,
                                                                  append_to_response=append_to_response)
@@ -2356,4 +2367,11 @@ class Media:
         if production_company:
             result.append({"制作公司": production_company})
 
+        return result
+
+    def _search_av(self, av_numer):
+        """
+        获取av信息
+        """
+        result = self.mdc.search(av_numer)
         return result
