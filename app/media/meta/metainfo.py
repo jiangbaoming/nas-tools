@@ -57,14 +57,18 @@ def MetaInfo(title,
 
     laboratory = Config().get_config('laboratory')
     recognize_enhance_enable = False
+    is_av = False
+    if get_number(rev_title):
+        is_av = True
     if laboratory:
         recognize_enhance_enable = laboratory.get('recognize_enhance_enable', False) or False
-
     if recognize_enhance_enable:
-        meta_info = MetaVideoV2(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
+        if not is_av:
+            meta_info = MetaVideoV2(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
     else:
-        if mtype == MediaType.AV or get_number(rev_title):
+        if mtype == MediaType.AV or is_av:
             meta_info = MetaAv(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
+            meta_info.type = MediaType.AV
         elif mtype == MediaType.ANIME or is_anime(rev_title):
             meta_info = MetaAnime(rev_title, subtitle, fileflag, filePath, media_type, cn_name, en_name, tmdb_id, imdb_id)
         else:

@@ -1,14 +1,6 @@
-import re
-
-import zhconv
-
-import anitopy
 from app.media.meta._base import MetaBase
-from app.media.meta.release_groups import ReleaseGroupsMatcher
-from app.media.meta.customization import CustomizationMatcher
-from app.utils import StringUtils, ExceptionUtils
-from app.utils.types import MediaType
 from app.utils.number_parser_util import get_number
+from app.utils.types import MediaType
 
 
 class MetaAv(MetaBase):
@@ -38,6 +30,7 @@ class MetaAv(MetaBase):
             return
         av_number = get_number(title)
         self.title = av_number
+        self.media_type = MediaType.AV
         self.type = MediaType.AV
         self.cn_name = av_number
         self.en_name = av_number

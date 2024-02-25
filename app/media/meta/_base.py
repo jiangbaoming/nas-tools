@@ -559,7 +559,7 @@ class MetaBase(object):
         self.overview = info.get('overview')
         self.original_language = info.get('original_language')
         self.networks = [network.get("name") for network in info.get('networks') or []]
-        if self.type == MediaType.MOVIE:
+        if self.type == MediaType.MOVIE or self.type == MediaType.AV:
             self.title = info.get('title')
             self.original_title = info.get('original_title')
             self.runtime = info.get("runtime")
@@ -578,10 +578,11 @@ class MetaBase(object):
                 self.category = self.category_handler.get_tv_category(info)
             else:
                 self.category = self.category_handler.get_anime_category(info)
-        self.poster_path = Config().get_tmdbimage_url(info.get('poster_path')) \
-            if info.get('poster_path') else ""
-        self.backdrop_path = Config().get_tmdbimage_url(info.get('backdrop_path')) \
-            if info.get('backdrop_path') else ""
+        if self.type != MediaType.AV:
+            self.poster_path = Config().get_tmdbimage_url(info.get('poster_path')) \
+                if info.get('poster_path') else ""
+            self.backdrop_path = Config().get_tmdbimage_url(info.get('backdrop_path')) \
+                if info.get('backdrop_path') else ""
 
     # 整合种子信息
     def set_torrent_info(self,

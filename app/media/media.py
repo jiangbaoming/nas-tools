@@ -941,7 +941,8 @@ class Media:
                     # 没有缓存数据
                     if not self.meta.get_meta_data_by_key(media_key):
                         if meta_info.type == MediaType.AV:
-                            file_media_info = self._search_av(meta_info.get_name(),meta_info)
+                            file_media_info = self._search_av(meta_info)
+                            print(file_media_info)
                             if not file_media_info:
                                 log.warn("【Rmt】%s 未识别出有效信息！" % meta_info.org_string)
                                 continue
@@ -994,7 +995,10 @@ class Media:
                         # 使用缓存信息
                         cache_info = self.meta.get_meta_data_by_key(media_key)
                         if cache_info.get("id"):
-                            file_media_info = self.get_tmdb_info(mtype=cache_info.get("type"),
+                            if cache_info.get('type') == MediaType.AV:
+                                file_media_info = self._search_av(meta_info)
+                            else:
+                                file_media_info = self.get_tmdb_info(mtype=cache_info.get("type"),
                                                                  tmdbid=cache_info.get("id"),
                                                                  chinese=chinese,
                                                                  append_to_response=append_to_response)
@@ -1019,6 +1023,9 @@ class Media:
                     # 加入缓存
                     self.save_rename_cache(file_name, tmdb_info)
                 # 按文件路程存储
+                print(file_path)
+                print(meta_info)
+                print(file_media_info)
                 return_media_infos[file_path] = meta_info
             except Exception as err:
                 print(str(err))
@@ -2369,9 +2376,9 @@ class Media:
 
         return result
 
-    def _search_av(self, av_numer):
+    def _search_av(self, media_info):
         """
         获取av信息
         """
-        result = self.mdc.search(av_numer)
+        result = self.mdc.search(media_info)
         return result

@@ -1331,12 +1331,11 @@ class FileTransfer:
         file_name = re.sub(r"[-_\s.]*\t", "", self._movie_file_rmt_format.format(**format_dict))
         return dir_name, file_name
 
-        def get_av_dest_path(self, media_info):
-            """
-            计算av文件路径
-            :return: av目录、av名称
-            """
-
+    def get_av_dest_path(self, media_info):
+        """
+        计算av文件路径
+        :return: av目录、av名称
+        """
         format_dict = self.get_format_dict(media_info)
         dir_name = re.sub(r"[-_\s.]*\t", "", self._av_dir_rmt_format.format(**format_dict))
         file_name = re.sub(r"[-_\s.]*\t", "", self._av_file_rmt_format.format(**format_dict))

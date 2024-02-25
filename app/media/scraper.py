@@ -15,6 +15,7 @@ from app.media.meta import MetaInfo
 from app.utils import DomUtils, RequestUtils, ExceptionUtils, NfoReader, SystemUtils, StringUtils
 from app.utils.commons import retry
 from app.utils.types import MediaType, SystemConfigKey, RmtMode
+from app.media.mdcapi.image.image_util import cut_image
 from config import Config, RMT_MEDIAEXT
 
 
@@ -246,6 +247,158 @@ class Scraper:
             # 年份
             DomUtils.add_node(doc, root, "year",
                               tmdbinfo.get("release_date")[:4] if tmdbinfo.get("release_date") else "")
+        # 保存
+        self.__save_nfo(doc, os.path.join(out_path, "%s.nfo" % file_name))
+
+    def __gen_av_nfo_file(self,
+                          media,
+                          out_path,
+                          file_name):
+        """
+        生成AV的NFO描述文件
+        :param media: media信息
+        :param out_path: 电影根目录
+        :param file_name: 电影文件名，不含后缀
+        """
+        media_info = media.tmdb_info
+        multi_part = False
+        part = ''
+        leak_word = ''
+        c_word = ''
+        cn_sub = False
+        liuchu = False
+        hack = False
+        hack_word = ''
+        _4k = False
+        iso = False
+        if not media_info:
+            return
+        number = media_info["number"]
+        json_data = media_info  # 定义番号
+        tag = json_data.get('tag')
+        movie_path = media.filePath
+        # =======================================================================判断-C,-CD后缀
+        if re.search('[-_]CD\d+', movie_path, re.IGNORECASE):
+            multi_part = True
+            part = re.findall('[-_]CD\d+', movie_path, re.IGNORECASE)[0].upper()
+        if re.search(r'[-_]C(\.\w+$|-\w+)|\d+ch(\.\w+$|-\w+)', movie_path,
+                     re.I) or '中文' in movie_path or '字幕' in movie_path:
+            cn_sub = True
+            c_word = '-C'  # 中文字幕影片后缀
+        # 判断是否无码
+        unce = json_data.get('无码')
+        uncensored = int(unce) if isinstance(unce, bool) else int(json_data['uncensored'])
+
+        if '流出' in movie_path or 'uncensored' in movie_path.lower() or 'leak' in movie_path.lower():
+            liuchu = '流出'
+            leak = True
+            leak_word = '-leak'  # 流出影片后缀
+        else:
+            leak = False
+
+        if 'hack'.upper() in str(movie_path).upper() or '破解' in movie_path:
+            hack = True
+            hack_word = "-hack"
+
+        if '4k'.upper() in str(movie_path).upper() or '4k' in movie_path:
+            _4k = True
+
+        if '.iso'.upper() in str(movie_path).upper() or '.iso' in movie_path:
+            iso = True
+
+        if '-uc'.upper() in str(movie_path).upper():
+            hack = True
+            hack_word = "-hack"
+            cn_sub = True
+            c_word = '-C'  # 中文字幕影片后缀
+
+        if '-u'.upper() in str(movie_path).upper():
+            hack = True
+            hack_word = "-hack"
+
+        if '-lc'.upper() in str(movie_path).upper():
+            leak_word = '-leak'  # 无码流出影片后缀
+            leak = True
+            cn_sub = True
+            c_word = '-C'  # 中文字幕影片后缀
+
+        if '-l'.upper() in str(movie_path).upper():
+            leak_word = '-leak'  # 无码流出影片后缀
+            leak = True
+
+        # 判断是否4k
+        if '4K' in tag:
+            tag.remove('4K')  # 从tag中移除'4K'
+
+        # 判断是否为无码破解
+        if '无码破解' in tag:
+            tag.remove('无码破解')  # 从tag中移除'无码破解'
+
+        cover = json_data.get('cover')
+        ext = str(cover).split('.')[-1]
+        if len(hack_word) > 0 or len(leak_word) > 0:
+            c_word = ""
+        fanart_path = f"fanart{ext}"
+        poster_path = f"poster{ext}"
+        thumb_path = f"thumb{ext}"
+
+        log.info("【Scraper】正在生成AV NFO文件：%s" % file_name)
+        doc = minidom.Document()
+        root = DomUtils.add_node(doc, doc, "movie")
+        DomUtils.add_node(doc, root, 'title', json_data['title'])
+        DomUtils.add_node(doc, root, 'originaltitle', json_data['original_naming_rule'])
+        DomUtils.add_node(doc, root, 'sorttitle', json_data['title'])
+        DomUtils.add_node(doc, root, 'customrating', 'JP-18+')
+        DomUtils.add_node(doc, root, 'mpaa', 'JP-18+')
+        DomUtils.add_node(doc, root, 'studio', json_data['studio'])
+        DomUtils.add_node(doc, root, 'year', json_data['year'])
+        DomUtils.add_node(doc, root, 'set', json_data['series'])
+        DomUtils.add_node(doc, root, 'outline', json_data['outline'])
+        DomUtils.add_node(doc, root, 'plot', json_data['plot'])
+        DomUtils.add_node(doc, root, 'runtime', str(json_data['runtime']).replace(" ", ""))
+        DomUtils.add_node(doc, root, 'director', json_data['director'])
+        DomUtils.add_node(doc, root, 'poster', poster_path)
+        DomUtils.add_node(doc, root, 'thumb', thumb_path)
+        DomUtils.add_node(doc, root, 'fanart', fanart_path)
+        for key in json_data['actor_list']:
+            actor_node = DomUtils.add_node(doc, root, 'actor')
+            DomUtils.add_node(doc, actor_node, 'name', key)
+            DomUtils.add_node(doc, actor_node, 'thumb', json_data['actor_photo'].get(str(key)))
+            DomUtils.add_node(doc, root, 'tag', key)
+        DomUtils.add_node(doc, root, 'maker', json_data['studio'])
+        # DomUtils.add_node(doc, root, 'label', label)
+        for i in tag:
+            DomUtils.add_node(doc, root, 'tag', i)
+        if cn_sub:
+            DomUtils.add_node(doc, root, 'tag', '中文字幕')
+            DomUtils.add_node(doc, root, 'genre', '中文字幕')
+        if liuchu:
+            DomUtils.add_node(doc, root, 'tag', '无码流出')
+            DomUtils.add_node(doc, root, 'genre', '无码流出')
+        if uncensored:
+            DomUtils.add_node(doc, root, 'tag', '无码')
+            DomUtils.add_node(doc, root, 'genre', '无码')
+        if hack:
+            DomUtils.add_node(doc, root, 'tag', '破解')
+            DomUtils.add_node(doc, root, 'genre', '破解')
+        if _4k:
+            DomUtils.add_node(doc, root, 'tag', '4k')
+            DomUtils.add_node(doc, root, 'genre', '4k')
+        DomUtils.add_node(doc, root, 'num', number)
+        DomUtils.add_node(doc, root, 'premiered', json_data['release'])
+        DomUtils.add_node(doc, root, 'releasedate', json_data['release'])
+        DomUtils.add_node(doc, root, 'release', json_data['release'])
+        DomUtils.add_node(doc, root, 'rating', json_data['userrating'])
+        DomUtils.add_node(doc, root, 'criticrating', json_data['userrating'])
+        ratings = DomUtils.add_node(doc, root, 'ratings')
+        rating = DomUtils.add_node(doc, ratings, 'rating', json_data['userrating'])
+        rating.setAttribute('name', 'javdb')
+        rating.setAttribute('max', '5')
+        rating.setAttribute('default', 'true')
+        DomUtils.add_node(doc, rating, 'value', json_data['userrating'])
+        DomUtils.add_node(doc, rating, 'votes', json_data['uservotes'])
+        DomUtils.add_node(doc, root, 'cover', cover)
+        DomUtils.add_node(doc, root, 'website', json_data['website'])
         # 保存
         self.__save_nfo(doc, os.path.join(out_path, "%s.nfo" % file_name))
 
@@ -538,6 +691,7 @@ class Scraper:
             elif media.type == MediaType.AV:
                 scraper_movie_nfo = self._scraper_nfo.get("movie")
                 scraper_movie_pic = self._scraper_pic.get("movie")
+                media_info = media.tmdb_info
                 #  movie nfo
                 if scraper_movie_nfo.get("basic") or scraper_movie_nfo.get("credits"):
                     # 已存在时不处理
@@ -545,46 +699,40 @@ class Scraper:
                             or (not os.path.exists(os.path.join(dir_path, "movie.nfo"))
                                 and not os.path.exists(os.path.join(dir_path, "%s.nfo" % file_name))):
                         #  生成电影描述文件
-                        self.__gen_movie_nfo_file(tmdbinfo=media.tmdb_info,
-                                                  doubaninfo=None,
-                                                  scraper_movie_nfo=scraper_movie_nfo,
-                                                  out_path=dir_path,
-                                                  file_name=file_name)
-                # poster
-                if scraper_movie_pic.get("poster"):
-                    poster_image = media.get_poster_image(original=True)
-                    if poster_image:
-                        self.__save_image(poster_image, dir_path, "poster", force_pic)
-                # backdrop
-                if scraper_movie_pic.get("backdrop"):
-                    backdrop_image = media.get_backdrop_image(default=False, original=True)
-                    if backdrop_image:
-                        self.__save_image(backdrop_image, dir_path, "fanart", force_pic)
-                # background
-                if scraper_movie_pic.get("background"):
-                    background_image = media.fanart.get_background(media_type=media.type, queryid=media.tmdb_id)
-                    if background_image:
-                        self.__save_image(background_image, dir_path, "background", force_pic)
-                # logo
-                if scraper_movie_pic.get("logo"):
-                    logo_image = media.fanart.get_logo(media_type=media.type, queryid=media.tmdb_id)
-                    if logo_image:
-                        self.__save_image(logo_image, dir_path, "logo", force_pic)
-                # disc
-                if scraper_movie_pic.get("disc"):
-                    disc_image = media.fanart.get_disc(media_type=media.type, queryid=media.tmdb_id)
-                    if disc_image:
-                        self.__save_image(disc_image, dir_path, "disc", force_pic)
-                # banner
-                if scraper_movie_pic.get("banner"):
-                    banner_image = media.fanart.get_banner(media_type=media.type, queryid=media.tmdb_id)
-                    if banner_image:
-                        self.__save_image(banner_image, dir_path, "banner", force_pic)
-                # thumb
-                if scraper_movie_pic.get("thumb"):
-                    thumb_image = media.fanart.get_thumb(media_type=media.type, queryid=media.tmdb_id)
-                    if thumb_image:
-                        self.__save_image(thumb_image, dir_path, "thumb", force_pic)
+                        self.__gen_av_nfo_file(media,
+                                               out_path=dir_path,
+                                               file_name=file_name)
+                imagecut = media_info['imagecut']
+                cover = media_info['cover']
+                if cover:
+                    # poster
+                    if scraper_movie_pic.get("poster"):
+                        if imagecut == 3:
+                            self.__save_image(media_info["cover_small"], dir_path, "poster", force_pic)
+                        else:
+                            self.__save_image(cover, dir_path, "poster", force_pic)
+                    # backdrop
+                    if scraper_movie_pic.get("backdrop"):
+                        self.__save_image(cover, dir_path, "fanart", force_pic)
+                    # background
+                    if scraper_movie_pic.get("background"):
+                        self.__save_image(cover, dir_path, "background", force_pic)
+                    # logo
+                    if scraper_movie_pic.get("logo"):
+                        self.__save_image(cover, dir_path, "logo", force_pic)
+                    # disc
+                    if scraper_movie_pic.get("disc"):
+                        self.__save_image(cover, dir_path, "disc", force_pic)
+                    # banner
+                    if scraper_movie_pic.get("banner"):
+                        self.__save_image(cover, dir_path, "banner", force_pic)
+                    # thumb
+                    if scraper_movie_pic.get("thumb"):
+                        self.__save_image(cover, dir_path, "thumb", force_pic)
+
+                    thumb_name = "%s.%s" % ('thumb', str(cover).split('.')[-1])
+                    poster_name = "%s.%s" % ('poster', str(cover).split('.')[-1])
+                    cut_image(imagecut, dir_path, thumb_name, poster_name)
             # 电视剧
             else:
                 scraper_tv_nfo = self._scraper_nfo.get("tv")
