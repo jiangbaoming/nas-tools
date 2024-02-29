@@ -1,3 +1,9 @@
 [submodule "third_party/feapder"]
 	path = third_party/feapder
 	url = https://github.com/jxxghp/feapder
+[submodule "third_party/Js2Py"]
+	path = third_party/Js2Py
+	url = https://github.com/PiotrDabkowski/Js2Py.git
+[submodule "third_party/pyjsparser"]
+	path = third_party/pyjsparser
+	url = https://github.com/PiotrDabkowski/pyjsparser.git
